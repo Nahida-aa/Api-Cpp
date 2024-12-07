@@ -2,6 +2,7 @@
 #include "request.hpp"
 #include <string>
 #include "jwt.hpp"
+#include "../types/json.hpp"
 
 // 辅助函数，用于获取和验证 Authorization 头部
 std::string get_authorization(const Request& request) {
@@ -13,9 +14,9 @@ std::string get_authorization(const Request& request) {
         token = "";
     }
     std::cout << "Authorization: " << token << std::endl;
-    auto decoded = verify_token(token);
-    if (!decoded) {
+    auto payload = verify_token(token);
+    if (!payload) {
         throw std::runtime_error("无效的令牌");
     }
-    return decoded->get("id_number", "null").as_string();
+    return payload->get("id_number", "null");
 }

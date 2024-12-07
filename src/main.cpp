@@ -6,36 +6,27 @@
 #include <stdexcept>
 #include <algorithm>
 #include <optional>
-#include "json.hpp" // 假设您的 JSON 库头文件名为 json.hpp
-#include "web_server.hpp" // 假设您的 Web 服务器头文件名为 web_server.hpp
-#include "flight.hpp" // 添加这个头文件以使用 Flight 类
-#include "passenger.hpp" // 添加这个头文件以使用 Passenger 类
-#include "depend.hpp"
-#include "user.hpp"
+#include "web/web_server.hpp"
+#include "app/flight.hpp"
+#include "app/passenger.hpp"
+#include "app/user.hpp"
 
 int main() {
     Api app;
     app.get("/", [](const Request& req) {
         return "./public/index.html";
-    });    
-    app.get("/1.5", [](const Request& req) -> ApiFuncResult {
-        return 1.5;
-    });    app.get("/-1.5", [](const Request& req) -> ApiFuncResult {
-        return -1.5;
-    });app.get("/true", [](const Request& req) -> ApiFuncResult {
-        return true;
+    });
+    app.get("/admin", [](const Request& req) {
+        return "./public/admin.html";
     });
     app.post("/api/login", [](const Request& req) {
         string token = User::login(req.body);
         return "{\"token\": \"" + token + "\"}";
     });
-    app.get("/admin", [](const Request& req) {
-        return "./public/admin.html";
-    });
     // 增加航班记录
     app.post("/api/flights", [](const Request& req) {
         Flight newFlight = Flight::create_from_obj_str(req.body);
-        return newFlight.to_json().dumps();
+        return newFlight.to_json();
     });
     // 航班取消
     app.put("/api/flights/cancel/([a-zA-Z0-9]+)", {"flight_number"}, [](const Request& req) {
@@ -70,6 +61,7 @@ int main() {
     // 获取所有航班
     app.get("/api/flights", [](const Request& req) {
         Flight::auto_cancel();
+        cout << "准备获取所有航班" << endl;
         Json response = Flight::to_json_array(Flight::get_all());
         return response.dumps();;
     });
@@ -82,17 +74,18 @@ int main() {
         cout << "航班订票: 成功获取用户" << user.name << endl;
         cout << "航班订票: 请求体" << req.body << endl;
         Json reqBody = Json::loads(req.body);
-        string flight_number =reqBody["flight_number"].as_string();
-        int num_tickets = reqBody["num_tickets"].as_number();
+        string flight_number =reqBody["flight_number"];
+        int num_tickets = reqBody["num_tickets"];
+        int seat_number = reqBody["seat_number"];
         
         // 检查航班是否已取消, 是否有足够座位, 是否存在
         Flight::auto_cancel();
         Flight::check_availability(flight_number, num_tickets);
 
-        for (int i = 0; i < reqBody["num_tickets"].as_number(); ++i) {
+        for (int i = 0; i < num_tickets; ++i) {
             Passenger::create( // 创建乘客信息, 并保证(flight_number, seat_number)唯一
                 flight_number, id_number, user.name,
-                user.gender, user.birth_date, reqBody["seat_number"].as_string()
+                user.gender, user.birth_date, seat_number+i
             );
         }
 
@@ -121,8 +114,8 @@ int main() {
     app.del("/api/bookings", [](const Request& req) {
         string id_number = get_authorization(req);
         Json reqBody = Json::loads(req.body);
-        string flight_number = reqBody["flight_number"].as_string();
-        string seat_number = reqBody["seat_number"].as_string();
+        string flight_number = reqBody["flight_number"];
+        int seat_number = reqBody["seat_number"];
 
         // 获取所有乘客信息
         vector<Passenger> passengers = Passenger::get_all();

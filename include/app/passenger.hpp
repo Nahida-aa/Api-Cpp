@@ -3,75 +3,60 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include "json.hpp"
+#include <fstream>
+#include <algorithm>
+#include "./types/json.hpp"
+using namespace std;
 
 class Passenger {
 public:
-    static string json_file_path;
-    static string notifications_file_path;
+    static string json_file_path; // json 文件路径
+    static string notifications_file_path; // 通知文件路径
 
-    string flight_number;
-    string id_number;
-    string name;
-    string gender;
-    string birth_date;
-    string seat_number;
+    string flight_number;  // 航班号
+    string id_number; // 身份证号码
+    string name; // 姓名
+    string gender; // 性别
+    string birth_date; // 出生年月
+    int seat_number; // 座位号
 
     Passenger() = default;
     Passenger(const string& flight_number, const string& id_number, const string& name,
-              const string& gender, const string& birth_date, const string& seat_number)
+              const string& gender, const string& birth_date, const int& seat_number)
         : flight_number(flight_number), id_number(id_number), name(name), gender(gender), birth_date(birth_date), seat_number(seat_number) {}
 
-    static Passenger create(
-        const string& flight_number, 
-        const string& id_number, 
-        const string& name,
-        const string& gender, 
-        const string& birth_date, 
-        const string& seat_number) {
-        // DEBUG
-        cout << "Passenger::create: 准备获取全部乘客" << endl;
-        vector<Passenger> passengers = get_all();
-        cout << "Passenger::create: 成功获取全部乘客, 准备 new 一个 乘客" << endl;
-        for (const auto& passenger : passengers) {
-            if (passenger.flight_number == flight_number && passenger.seat_number == seat_number) {
-                throw runtime_error("座位已被预订");
-            }
-        }
-        Passenger new_passenger(flight_number, id_number, name, gender, birth_date, seat_number);
-        passengers.push_back(new_passenger);
-        cout << "Passenger::create: 成功 new 一个 乘客到 乘客列表中, 准备保存全部乘客" << endl;
-        save_all(passengers);
-        return new_passenger;
-    }
+
 
     static vector<Passenger> get_all() {
         ifstream file(json_file_path);
-        // DEBUG
-        cout << "Passenger::get_all: 尝试打开文件" << endl;
+        // NOTE
+        // cout << "Passenger::get_all: 尝试打开文件: "<< json_file_path  << endl;
         if (!file.is_open()) {
             throw runtime_error("File not found: " + json_file_path);
             return {};
         }
         // DEBUG
-        cout << "Passenger::get_all: 成功打开文件, 准备读取文件内容" << endl;
+        // cout << "Passenger::get_all: 成功打开文件, 准备读取文件内容" << endl;
         string content((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
         // 如果文件内容为空，返回空的乘客列表
         if (content.empty()) {
-            cout << "Passenger::get_all: 文件内容为空，返回空的乘客列表" << endl;
+            // cout << "Passenger::get_all: 文件内容为空，返回空的乘客列表" << endl;
             return {};
         }
-        // DEBUG
-        cout << "Passenger::get_all: 成功读取文件内容: "<< content <<" 准备解析 json 数据" << endl;
+        // NOTE
+        // cout << "Passenger::get_all: 成功读取文件内容: "<< content <<" 准备解析 json 数据" << endl;
         Json data = Json::loads(content);
-        // DEBUG
-        cout << "Passenger::get_all: 成功解析 json 数据, 准备遍历数据" << endl;
+        // NOTE
+        // cout << "Passenger::get_all: 成功解析 json 数据, 准备遍历数据" << endl;
         vector<Passenger> passengers;
-        for (const auto& item : data.as_array()) {
+        for (const auto& item : data) {
             Passenger passenger;
+            // cout<< "Passenger::get_all: 遍历数据: "<< item << endl;
             from_json(item, passenger);
             passengers.push_back(passenger);
         }
+        // NOTE
+        // cout << "Passenger::get_all: 成功遍历数据" << endl;
         return passengers;
     }
 
@@ -95,6 +80,30 @@ public:
         }
         return result;
     }
+
+    static Passenger create(
+        const string& flight_number, 
+        const string& id_number, 
+        const string& name,
+        const string& gender, 
+        const string& birth_date, 
+        const int& seat_number) {
+        // NOTE
+        // cout << "Passenger::create: 准备获取全部乘客" << endl;
+        vector<Passenger> passengers = get_all();
+        // cout << "Passenger::create: 成功获取全部乘客, 准备 new 一个 乘客" << endl;
+        for (const auto& passenger : passengers) {
+            if (passenger.flight_number == flight_number && passenger.seat_number == seat_number) {
+                throw runtime_error("座位已被预订");
+            }
+        }
+        Passenger new_passenger(flight_number, id_number, name, gender, birth_date, seat_number);
+        passengers.push_back(new_passenger);
+        // cout << "Passenger::create: 成功 new 一个 乘客到 乘客列表中, 准备保存全部乘客" << endl;
+        save_all(passengers);
+        return new_passenger;
+    }
+
     static void remove(const string& id_number, const string& flight_number) {
         vector<Passenger> passengers = get_all();
         passengers.erase(remove_if(passengers.begin(), passengers.end(),
@@ -104,36 +113,9 @@ public:
         save_all(passengers);
     }
 
-    static void add_notification(const string& id_number, const string& message) {
-        Json notifications = get_notifications();
-        Json notification;
-        notification["id_number"] = id_number;
-        notification["time"] = time(nullptr);
-        notification["msg"] = message;
-        notification["is_read"] = false;
-        notifications.append(notification);
-        save_notifications(notifications);
-    }
-    static Json get_notifications(const string& id_number) {
-        Json notifications = get_notifications();
-        Json user_notifications = Json::loads("[]");
-        for (const auto& notification : notifications.as_array()) {
-            if (notification["id_number"].as_string() == id_number) {
-                user_notifications.append(notification);
-            }
-        }
-        return user_notifications;
-    }
-    static void mark_notifications_as_read(const string& id_number) {
-        Json notifications = get_notifications();
-        for (auto& notification : notifications.as_array()) {
-            if (notification["id_number"].as_string() == id_number) {
-                notification["is_read"] = true;
-            }
-        }
-        save_notifications(notifications);
-    }
-    static Json get_notifications() {
+
+
+    static Json get_notifications_all() { // 获取所有通知
         ifstream file(notifications_file_path);
         if (!file.is_open()) {
             return Json::loads("[]");
@@ -144,10 +126,43 @@ public:
         }
         return Json::loads(content);
     }
+    static Json get_notifications(const string& id_number) { // 获取某个用户的通知
+        Json notifications = get_notifications_all();
+        Json user_notifications = Json::loads("[]");
+        for (const auto& notification : notifications) {
+            if (notification["id_number"] == id_number) {
+                user_notifications.append(notification);
+            }
+        }
+        return user_notifications;
+    }
+
+    static void add_notification(const string& id_number, const string& message) {
+        Json notifications = get_notifications_all();
+        Json notification;
+        notification["id_number"] = id_number;
+        notification["time"] = time(nullptr);
+        notification["msg"] = message;
+        notification["is_read"] = false;
+        notifications.append(notification);
+        save_notifications(notifications);
+    }
+
+    static void mark_notifications_as_read(const string& id_number) {
+        Json notifications = get_notifications_all();
+        for (auto& notification : notifications) {
+            if (notification["id_number"] == id_number) {
+                notification["is_read"] = true;
+            }
+        }
+        save_notifications(notifications);
+    }
+
     static void save_notifications(const Json& notifications) {
         ofstream file(notifications_file_path);
         file << notifications.dumps();
     }
+
     static Json to_json_array(const vector<Passenger>& passengers) {
         Json data = Json::loads("[]");
         for (const auto& passenger : passengers) {
@@ -178,12 +193,12 @@ private:
 
 
     static void from_json(const Json& json, Passenger& passenger) {
-        passenger.flight_number = json["flight_number"].as_string();
-        passenger.id_number = json["id_number"].as_string();
-        passenger.name = json["name"].as_string();
-        passenger.gender = json["gender"].as_string();
-        passenger.birth_date = json["birth_date"].as_string();
-        passenger.seat_number = json["seat_number"].as_string();
+        passenger.flight_number = json.get<string>("flight_number");
+        passenger.id_number = json.get<string>("id_number");
+        passenger.name = json.get<string>("name");
+        passenger.gender = json.get<string>("gender");
+        passenger.birth_date = json.get<string>("birth_date");
+        passenger.seat_number = json["seat_number"];
     }
 };
 

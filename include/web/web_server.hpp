@@ -11,8 +11,8 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <regex>
-#include "api.hpp"
-#include "response.hpp"
+#include "web/api.hpp"
+#include "web/response.hpp"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -154,9 +154,15 @@ private:
         if (iResult > 0) {
             std::string request_str(recvbuf.begin(), recvbuf.begin() + iResult);
             std::cout << "Received[收到] request:\n" << request_str << std::endl; // 打印接收到的请求
+            // 处理静态文件请求
+            if (handle_static_file_request(ClientSocket, request_str)) {
+                closesocket(ClientSocket); // 处理完静态文件请求后关闭客户端套接字
+                return;
+            }
+
             Response response = api_.handle_request(request_str);
             std::string response_str = response.to_string();
-            std::cout << "Sending[发出] response:\n" << response_str << std::endl; // 打印发送的响应
+            // std::cout << "Sending[发出] response:\n" << response_str << std::endl; // 打印发送的响应
 
             int iSendResult = send(ClientSocket, response_str.c_str(), response_str.length(), 0);
             if (iSendResult == SOCKET_ERROR) {
@@ -169,6 +175,37 @@ private:
         }
 
         closesocket(ClientSocket);
+    }
+    bool handle_static_file_request(SOCKET ClientSocket, const std::string& request_str) {
+        std::istringstream request_stream(request_str);
+        std::string method, path, version;
+        request_stream >> method >> path >> version;
+
+        if (method == "GET" && path.find("/public/") == 0) {
+            std::string file_path = "." + path; // 假设静态文件存储在当前目录下的 public 文件夹中
+            std::ifstream file(file_path, std::ios::binary);
+            if (file) {
+                std::ostringstream oss;
+                oss << file.rdbuf();
+                std::string file_content = oss.str();
+
+                std::string response = "HTTP/1.1 200 OK\r\n";
+                response += "Content-Length: " + std::to_string(file_content.size()) + "\r\n";
+                response += "Content-Type: text/css\r\n"; // 假设所有静态文件都是 CSS 文件
+                response += "\r\n";
+                response += file_content;
+
+                send(ClientSocket, response.c_str(), response.size(), 0);
+                return true;
+            } else {
+                std::string response = "HTTP/1.1 404 Not Found\r\n";
+                response += "Content-Length: 0\r\n";
+                response += "\r\n";
+                send(ClientSocket, response.c_str(), response.size(), 0);
+                return true;
+            }
+        }
+        return false;
     }
 
     void cleanup() {

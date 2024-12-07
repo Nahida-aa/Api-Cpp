@@ -4,10 +4,12 @@
 #include <vector>
 #include <functional>
 #include <regex>
-#include "request.hpp"
-#include "response.hpp"
+// #include "./web_server.hpp"
+#include "./request.hpp"
+#include "./response.hpp"
+#include "./depend.hpp"
 #include <variant> // c++17
-#include "to_str.hpp"
+#include "../types/to_str.hpp"
 
 using namespace std;
 // Route handler function type, 定义路由处理函数类型
@@ -98,7 +100,9 @@ public:
                     cout << "Api::handle_request: 准备调用处理函数: 准备获得响应体" << endl; // 调用处理函数
                     try {
                         Response response = route.handler(request);
-                        cout << "Api::handle_request: 调用处理函数: 成功获得响应体: " << response.body << endl; // 调用处理函数
+                        cout << "Api::handle_request: 调用处理函数: 成功获得响应体: " 
+                        // << response.body 
+                        << endl; // 调用处理函数
                         return response;
                     } catch (const runtime_error& e) {
                         return Response(409, Json().set("error", e.what()).dumps()); // 409 Conflict

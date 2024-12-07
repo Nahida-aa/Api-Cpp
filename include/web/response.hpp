@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <regex>
-#include "html_loader.hpp"
+#include "./html_loader.hpp"
 
 class Response {
 public:
@@ -13,7 +13,7 @@ public:
 
     Response(int status_code = 200, const std::string_view& body = "", const std::unordered_map<std::string, std::string>& headers = {})
         : status_code(status_code), body(body), headers(headers) {
-        if (this->body.ends_with(".html")) {
+        if (this->body.ends_with(".html") || this->body.ends_with(".css") || this->body.ends_with(".js")) {
             this->body = HtmlLoader::load(this->body);
         }
         set_content_type();
