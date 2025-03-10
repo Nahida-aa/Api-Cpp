@@ -1,0 +1,38 @@
+
+###
+GET http://127.0.0.1:8081/users
+
+###
+GET http://127.0.0.1:8081/users/1
+
+###
+POST http://127.0.0.1:8081/api/flights
+
+{
+    "flight_number":"CA1004",
+    "max_passengers":"220",
+    "departure_location":"深圳",
+    "departure_time":"2024-11-06T11:00",
+    "arrival_location":"广州",
+    "arrival_time":"2024-11-06T12:00",
+    "price":"320"
+}
+###
+POST http://127.0.0.1:9339/api/bookings
+Authorization: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3MzMzODEwMzcsImlkX251bWJlciI6IjEzNSIsImlzcyI6ImF1dGgwIn0=.1b461f31677c6b3304391139635d3b690540636c6b414a4042474963107a491b
+
+{
+    "flight_number":"CA1004",
+    "seat_number":"1",
+    "num_tickets":1
+}
+
+###
+PUT http://127.0.0.1:8081/users/1
+
+{
+    "name": "aa",
+    "email": "aa@aa"
+}
+
+DELETE http://127.0.0.1:8081/users/1
